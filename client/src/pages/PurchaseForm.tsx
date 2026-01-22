@@ -156,7 +156,7 @@ export default function PurchaseForm() {
 
           <FormFooter>
             <Button type="submit" $variant="primary">Сохранить</Button>
-            <Button type="button" onClick={() => navigate('/purchases')}>Отмена</Button>
+            <Button type="button" onClick={() => navigate(-1)}>Отмена</Button>
           </FormFooter>
         </form>
       </Card>
