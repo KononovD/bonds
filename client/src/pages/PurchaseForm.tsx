@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import ReactSelect from 'react-select';
 import { getBonds, createPurchase, updatePurchase, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
@@ -49,6 +49,7 @@ const selectStyles = {
 export default function PurchaseForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [formData, setFormData] = useState<Partial<Purchase>>({
     bondId: '',
@@ -63,6 +64,10 @@ export default function PurchaseForm() {
 
   useEffect(() => {
     getBonds().then(setBonds);
+
+    const queryParams = new URLSearchParams(location.search);
+    const bondIdFromQuery = queryParams.get('bondId');
+
     if (id) {
        getPurchases().then(purchases => {
          const p = purchases.find(x => x.id === id);
@@ -74,8 +79,10 @@ export default function PurchaseForm() {
              });
          }
        });
+    } else if (bondIdFromQuery) {
+      setFormData(prev => ({ ...prev, bondId: bondIdFromQuery }));
     }
-  }, [id]);
+  }, [id, location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

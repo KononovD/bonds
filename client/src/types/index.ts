@@ -27,3 +27,30 @@ export interface Purchase {
   pricePerBond: number;
   commission: number;
 }
+
+export interface Distribution {
+  bondId: string;
+  percent: number;
+}
+
+export interface MonthlyTarget {
+  year: number;
+  month: number;
+  amount: number;
+  distributions: Distribution[];
+}
+
+export interface TargetProgressBond {
+  bondId: string;
+  bondName: string;
+  percent: number;
+  targetAmount: number;
+  spentAmount: number;
+  remainingAmount: number;
+}
+
+export interface TargetProgress {
+  target: MonthlyTarget | null;
+  totalSpent: number;
+  bonds: TargetProgressBond[];
+}

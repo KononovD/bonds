@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Bond, Purchase } from '../types';
+import { Bond, Purchase, MonthlyTarget, TargetProgress } from '../types';
 
 const api = axios.create({
   baseURL: '/api'
@@ -15,3 +15,7 @@ export const getPurchases = () => api.get<Purchase[]>('/purchases').then(res => 
 export const createPurchase = (purchase: Partial<Purchase>) => api.post<Purchase>('/purchases', purchase).then(res => res.data);
 export const updatePurchase = (id: string, purchase: Partial<Purchase>) => api.put<Purchase>(`/purchases/${id}`, purchase).then(res => res.data);
 export const deletePurchase = (id: string) => api.delete(`/purchases/${id}`).then(res => res.data);
+
+export const getTarget = (year: number, month: number) => api.get<MonthlyTarget>(`/targets?year=${year}&month=${month}`).then(res => res.data);
+export const saveTarget = (target: MonthlyTarget) => api.post<MonthlyTarget>('/targets', target).then(res => res.data);
+export const getTargetProgress = (year: number, month: number) => api.get<TargetProgress>(`/targets/progress?year=${year}&month=${month}`).then(res => res.data);

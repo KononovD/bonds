@@ -32,16 +32,27 @@ export interface Purchase {
   commission: number; // in cents
 }
 
+export interface MonthlyTarget {
+  year: number;
+  month: number; // 1-12
+  amount: number; // in cents
+  distributions: {
+    bondId: string;
+    percent: number; // 0-100
+  }[];
+}
+
 export interface AppData {
   bonds: Bond[];
   purchases: Purchase[];
-  payments?: Payment[]; // Legacy or global payments if needed, but per requirements we prefer nested in bond for management, but prompt allows both. Let's keep structure extensible.
+  payments?: Payment[];
+  monthlyTargets?: MonthlyTarget[];
 }
 
 @Injectable()
 export class DataService implements OnModuleInit {
   private readonly dataFilePath = path.join(process.cwd(), 'data', 'data.json');
-  private data: AppData = { bonds: [], purchases: [], payments: [] };
+  private data: AppData = { bonds: [], purchases: [], payments: [], monthlyTargets: [] };
 
   async onModuleInit() {
     await this.loadData();
@@ -54,6 +65,7 @@ export class DataService implements OnModuleInit {
       if (!this.data.bonds) this.data.bonds = [];
       if (!this.data.purchases) this.data.purchases = [];
       if (!this.data.payments) this.data.payments = [];
+      if (!this.data.monthlyTargets) this.data.monthlyTargets = [];
     } catch (error) {
       console.log('Data file not found or empty, using default empty state.');
       await this.saveData();
@@ -68,6 +80,7 @@ export class DataService implements OnModuleInit {
 
   get bonds() { return this.data.bonds; }
   get purchases() { return this.data.purchases; }
+  get monthlyTargets() { return this.data.monthlyTargets || []; }
 
   async updateBonds(bonds: Bond[]) {
     this.data.bonds = bonds;
@@ -76,6 +89,11 @@ export class DataService implements OnModuleInit {
 
   async updatePurchases(purchases: Purchase[]) {
     this.data.purchases = purchases;
+    await this.saveData();
+  }
+
+  async updateMonthlyTargets(targets: MonthlyTarget[]) {
+    this.data.monthlyTargets = targets;
     await this.saveData();
   }
 
