@@ -1,14 +1,23 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
 import { BondsService } from './bonds.service';
+import { BondsCatalogService } from './bonds-catalog.service';
 import { CreateBondDto, UpdateBondDto } from './dto/bond.dto';
 
 @Controller('api/bonds')
 export class BondsController {
-  constructor(private readonly bondsService: BondsService) {}
+  constructor(
+    private readonly bondsService: BondsService,
+    private readonly catalogService: BondsCatalogService,
+  ) {}
 
   @Get()
   findAll() {
     return this.bondsService.findAll();
+  }
+
+  @Get('catalog')
+  getCatalog() {
+    return this.catalogService.getCatalog();
   }
 
   @Get(':id')

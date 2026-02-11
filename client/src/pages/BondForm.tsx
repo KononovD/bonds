@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactSelect from 'react-select';
-import { getBond, createBond, updateBond } from '../api/client';
+import { getBond, createBond, updateBond, getBondsCatalog, CatalogBond } from '../api/client';
 import { Bond, Payment } from '../types';
 import { Card, Title, Input, Label, FormGroup, Button, Table, Th, Td, PageTransition } from '../components/styled';
 import { Modal } from '../components/Modal';
@@ -80,6 +80,18 @@ export default function BondForm() {
   
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
+  const [catalog, setCatalog] = useState<CatalogBond[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+
+  useEffect(() => {
+    if (!id) {
+      setCatalogLoading(true);
+      getBondsCatalog()
+        .then(setCatalog)
+        .catch(() => setCatalog([]))
+        .finally(() => setCatalogLoading(false));
+    }
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -161,11 +173,50 @@ export default function BondForm() {
     setNewPayment({ ...newPayment, type, amount, date });
   };
 
+  const handleSelectFromCatalog = (option: { value: CatalogBond; label: string } | null) => {
+    if (!option?.value) return;
+    const b = option.value;
+    setFormData({
+      name: b.name,
+      currency: b.currency,
+      faceValue: b.faceValue,
+      couponRateAnnual: b.couponRateAnnual,
+      maturityDate: b.maturityDate,
+      notes: b.isin ? `ISIN: ${b.isin}` : '',
+      payments: b.payments.map((p) => ({
+        date: p.date,
+        amount: p.amount,
+        type: p.type,
+        received: false,
+      })),
+    });
+  };
+
+  const catalogOptions = catalog.map((b) => ({
+    value: b,
+    label: `${b.bondNumber} — ${b.name} (${b.isin})`,
+  }));
+
   return (
     <PageTransition>
       <Card>
         <Title>{id ? 'Редактировать облигацию' : 'Новая облигация'}</Title>
         <form onSubmit={handleSubmit}>
+          {!id && (
+            <FormGroup style={{ marginBottom: 24 }}>
+              <Label>Выбрать из каталога НБУ</Label>
+              <ReactSelect
+                styles={selectStyles}
+                options={catalogOptions}
+                isLoading={catalogLoading}
+                isSearchable
+                isClearable
+                onChange={handleSelectFromCatalog}
+                placeholder="Поиск по номеру или ISIN..."
+                noOptionsMessage={() => (catalogLoading ? 'Загрузка...' : 'Ничего не найдено')}
+              />
+            </FormGroup>
+          )}
           <Grid>
             <FormGroup>
               <Label>Название</Label>
