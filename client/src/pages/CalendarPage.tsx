@@ -4,6 +4,7 @@ import 'react-calendar/dist/Calendar.css';
 import { getBonds, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { Card, Title, PageTransition, Table, Th, Td } from '../components/styled';
+import { formatDate, toDateOnlyString } from '../utils/date';
 import styled from 'styled-components';
 import BigNumber from 'bignumber.js';
 
@@ -103,8 +104,8 @@ export default function CalendarPage() {
   }, []);
 
   const getPaymentsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    
+    const dateStr = toDateOnlyString(date);
+
     // Bond quantities map
     const bondQuantities = purchases.reduce((acc, p) => {
         acc[p.bondId] = (acc[p.bondId] || 0) + p.quantity;
@@ -125,7 +126,7 @@ export default function CalendarPage() {
       }));
     });
 
-    return allPayments.filter(p => p.date === dateStr);
+    return allPayments.filter(p => toDateOnlyString(p.date) === dateStr);
   };
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export default function CalendarPage() {
 
         <EventsList>
           <h3 style={{ marginTop: 0, marginBottom: '20px' }}>
-            События на {value instanceof Date ? value.toLocaleDateString('ru-RU') : ''}
+            События на {value instanceof Date ? formatDate(value.toISOString()) : ''}
           </h3>
           
           {selectedDateEvents.length === 0 ? (

@@ -3,6 +3,7 @@ import { getBonds, deleteBond } from '../api/client';
 import { Bond } from '../types';
 import { Link } from 'react-router-dom';
 import { Card, Table, Th, Td, Button, Title, PageTransition } from '../components/styled';
+import { formatDate } from '../utils/date';
 
 export default function BondList() {
   const [bonds, setBonds] = useState<Bond[]>([]);
@@ -64,7 +65,7 @@ export default function BondList() {
                     <Td>{(bond.faceValue / 100).toFixed(2)}</Td>
                     <Td>{couponAmount}</Td>
                     <Td>{bond.payments.length}</Td>
-                    <Td>{bond.maturityDate}</Td>
+                    <Td>{formatDate(bond.maturityDate)}</Td>
                     <Td>
                       <Link to={`/bonds/${bond.id}/edit`}>
                         <Button $variant="secondary">Ред.</Button>

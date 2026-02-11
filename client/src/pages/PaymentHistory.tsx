@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getBonds, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { Card, Title, Table, Th, Td, PageTransition } from '../components/styled';
+import { formatDate } from '../utils/date';
 import BigNumber from 'bignumber.js';
 
 interface HistoryItem {
@@ -72,7 +73,7 @@ export default function PaymentHistory() {
                 <tr><Td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>История пуста</Td></tr>
               ) : history.map((item, i) => (
                 <tr key={i}>
-                  <Td>{item.date}</Td>
+                  <Td>{formatDate(item.date)}</Td>
                   <Td>{item.bondName}</Td>
                   <Td>{item.type === 'coupon' ? 'Купон' : 'Погашение'}</Td>
                   <Td style={{ color: '#10b981', fontWeight: 600 }}>+{item.amount.toFixed(2)}</Td>

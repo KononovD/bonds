@@ -6,6 +6,7 @@ import { Bond, Purchase } from '../types';
 import { Card, Title, Input, Label, FormGroup, Button, PageTransition } from '../components/styled';
 import { Modal } from '../components/Modal';
 import { NumberInput } from '../components/NumberInput';
+import { toDateTimeLocalValue, fromDateTimeLocalToISO, ensureDateTime } from '../utils/date';
 import styled from 'styled-components';
 
 const Grid = styled.div`
@@ -53,7 +54,7 @@ export default function PurchaseForm() {
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [formData, setFormData] = useState<Partial<Purchase>>({
     bondId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString(),
     quantity: 1,
     pricePerBond: 0,
     commission: 0
@@ -71,13 +72,14 @@ export default function PurchaseForm() {
     if (id) {
        getPurchases().then(purchases => {
          const p = purchases.find(x => x.id === id);
-         if(p) {
-             setFormData({
-                 ...p,
-                 pricePerBond: p.pricePerBond / 100,
-                 commission: p.commission / 100
-             });
-         }
+         if (p) {
+            setFormData({
+              ...p,
+              date: ensureDateTime(p.date),
+              pricePerBond: p.pricePerBond / 100,
+              commission: p.commission / 100
+            });
+          }
        });
     } else if (bondIdFromQuery) {
       setFormData(prev => ({ ...prev, bondId: bondIdFromQuery }));
@@ -126,8 +128,13 @@ export default function PurchaseForm() {
               />
             </FormGroup>
             <FormGroup>
-              <Label>Дата</Label>
-              <Input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} required />
+              <Label>Дата и время</Label>
+              <Input
+                type="datetime-local"
+                value={toDateTimeLocalValue(formData.date || '')}
+                onChange={e => setFormData({ ...formData, date: fromDateTimeLocalToISO(e.target.value) })}
+                required
+              />
             </FormGroup>
             <FormGroup>
               <Label>Количество</Label>

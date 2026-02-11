@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getBonds, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { Card, Title, Table, Th, Td, PageTransition } from '../components/styled';
+import { formatDate } from '../utils/date';
 import styled from 'styled-components';
 
 const StatGrid = styled.div`
@@ -112,7 +113,7 @@ export default function Dashboard() {
                 <tr><Td colSpan={5} style={{ textAlign: 'center', color: '#888' }}>Нет предстоящих выплат</Td></tr>
               ) : upcomingPayments.map((p, i) => (
                 <PaymentRow key={i} $isInactive={!p.hasInPortfolio}>
-                  <Td>{p.date}</Td>
+                  <Td>{formatDate(p.date)}</Td>
                   <Td>{getDaysUntil(p.date)}</Td>
                   <Td>{p.bondName} {p.hasInPortfolio ? `(${p.quantity} шт.)` : ''}</Td>
                   <Td>{p.type === 'coupon' ? 'Купон' : 'Погашение'}</Td>

@@ -6,6 +6,12 @@ import { Bond, Payment } from '../types';
 import { Card, Title, Input, Label, FormGroup, Button, Table, Th, Td, PageTransition } from '../components/styled';
 import { Modal } from '../components/Modal';
 import { NumberInput } from '../components/NumberInput';
+import {
+  formatDate,
+  toDateTimeLocalValue,
+  fromDateTimeLocalToISO,
+  ensureDateTime,
+} from '../utils/date';
 import styled from 'styled-components';
 import BigNumber from 'bignumber.js';
 
@@ -82,9 +88,11 @@ export default function BondForm() {
               ...data,
               faceValue: new BigNumber(data.faceValue).dividedBy(100).toNumber(),
               couponRateAnnual: new BigNumber(data.couponRateAnnual).multipliedBy(100).toNumber(),
-              payments: data.payments.map(p => ({ 
-                  ...p, 
-                  amount: new BigNumber(p.amount).dividedBy(100).toNumber() 
+              maturityDate: ensureDateTime(data.maturityDate),
+              payments: data.payments.map(p => ({
+                  ...p,
+                  date: ensureDateTime(p.date),
+                  amount: new BigNumber(p.amount).dividedBy(100).toNumber()
               }))
           });
       });
@@ -101,9 +109,9 @@ export default function BondForm() {
           faceValue: new BigNumber(formData.faceValue || 0).multipliedBy(100).toNumber(),
           couponRateAnnual: new BigNumber(formData.couponRateAnnual || 0).dividedBy(100).toNumber(),
           couponFrequencyPerYear: formData.payments?.length || 0,
-          payments: formData.payments?.map(p => ({ 
-              ...p, 
-              amount: new BigNumber(p.amount).multipliedBy(100).toNumber() 
+          payments: formData.payments?.map(p => ({
+              ...p,
+              amount: new BigNumber(p.amount).multipliedBy(100).toNumber()
           }))
       };
 
@@ -122,9 +130,12 @@ export default function BondForm() {
 
   const handleAddPayment = () => {
     if (!newPayment.date || !newPayment.amount) return;
+    const dateIso = fromDateTimeLocalToISO(newPayment.date) || newPayment.date;
     setFormData(prev => ({
       ...prev,
-      payments: [...(prev.payments || []), newPayment as Payment].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      payments: [...(prev.payments || []), { ...newPayment, date: dateIso } as Payment].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      )
     }));
     setNewPayment({ date: '', amount: newPayment.amount, type: 'coupon', received: false });
   };
@@ -144,11 +155,9 @@ export default function BondForm() {
     if (type === 'redemption') {
         const faceVal = formData.faceValue || 0;
         const couponVal = formData?.payments?.[0]?.amount || amount;
-        
         amount = new BigNumber(faceVal).plus(couponVal).toNumber();
         date = formData?.maturityDate || '';
-    }
-      
+      }
     setNewPayment({ ...newPayment, type, amount, date });
   };
 
@@ -183,16 +192,26 @@ export default function BondForm() {
               />
             </FormGroup>
             <FormGroup>
-              <Label>Дата погашения</Label>
-              <Input type="date" value={formData.maturityDate} onChange={e => setFormData({...formData, maturityDate: e.target.value})} required />
+              <Label>Дата и время погашения</Label>
+              <Input
+                type="datetime-local"
+                value={toDateTimeLocalValue(formData.maturityDate || '')}
+                onChange={e => setFormData({ ...formData, maturityDate: fromDateTimeLocalToISO(e.target.value) })}
+                required
+              />
             </FormGroup>
           </Grid>
 
           <Title style={{ marginTop: '40px', fontSize: '1.25rem' }}>График выплат</Title>
           <Grid style={{ alignItems: 'end', marginBottom: '20px', gridTemplateColumns: '2fr 2fr 2fr 1fr' }}>
             <div>
-              <Label>Дата</Label>
-              <Input style={{ marginBottom: 0 }} type="date" value={newPayment.date} onChange={e => setNewPayment({...newPayment, date: e.target.value})} />
+              <Label>Дата и время</Label>
+              <Input
+                style={{ marginBottom: 0 }}
+                type="datetime-local"
+                value={toDateTimeLocalValue(newPayment.date || '')}
+                onChange={e => setNewPayment({ ...newPayment, date: e.target.value })}
+              />
             </div>
             <div>
               <Label>Сумма</Label>
@@ -230,7 +249,7 @@ export default function BondForm() {
                    <tr><Td colSpan={4} style={{ textAlign: 'center', color: '#888' }}>Нет выплат</Td></tr>
                 ) : formData.payments?.map((p, i) => (
                   <tr key={i}>
-                    <Td>{p.date}</Td>
+                    <Td>{formatDate(p.date)}</Td>
                     <Td>{p.amount.toFixed(2)}</Td> 
                     <Td>{p.type === 'coupon' ? 'Купон' : 'Погашение'}</Td>
                     <Td><Button type="button" $variant="danger" onClick={() => removePayment(i)}>X</Button></Td>

@@ -3,6 +3,7 @@ import { getPurchases, getBonds, deletePurchase } from '../api/client';
 import { Purchase } from '../types';
 import { Link } from 'react-router-dom';
 import { Card, Table, Th, Td, Button, Title, PageTransition } from '../components/styled';
+import { formatDate } from '../utils/date';
 
 export default function PurchaseList() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -59,7 +60,7 @@ export default function PurchaseList() {
                 <tr><Td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>Список покупок пуст</Td></tr>
               ) : purchases.map(p => (
                 <tr key={p.id}>
-                  <Td>{p.date}</Td>
+                  <Td>{formatDate(p.date)}</Td>
                   <Td>{bonds[p.bondId] || p.bondId}</Td>
                   <Td>{p.quantity}</Td>
                   <Td>{(p.pricePerBond / 100).toFixed(2)}</Td>

@@ -9,6 +9,7 @@ import PurchaseForm from './pages/PurchaseForm';
 import CalendarPage from './pages/CalendarPage';
 import PaymentHistory from './pages/PaymentHistory';
 import MonthlyTargetPage from './pages/MonthlyTarget';
+import Analytics from './pages/Analytics';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <NavLink to="/history">История</NavLink>
           <NavLink to="/bonds">Облигации</NavLink>
           <NavLink to="/purchases">Покупки</NavLink>
+          <NavLink to="/analytics">Аналитика</NavLink>
           <NavLink to="/targets">Цели</NavLink>
         </Nav>
       </Header>
@@ -37,6 +39,7 @@ function App() {
         <Route path="/purchases" element={<PurchaseList />} />
         <Route path="/purchases/new" element={<PurchaseForm />} />
         <Route path="/purchases/:id/edit" element={<PurchaseForm />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/targets" element={<MonthlyTargetPage />} />
       </Routes>
     </Container>
