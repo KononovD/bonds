@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactSelect from 'react-select';
 import { getBond, createBond, updateBond, getBondsCatalog, CatalogBond } from '../api/client';
@@ -6,6 +6,7 @@ import { Bond, Payment } from '../types';
 import { Card, Title, Input, Label, FormGroup, Button, Table, Th, Td, PageTransition } from '../components/styled';
 import { Modal } from '../components/Modal';
 import { NumberInput } from '../components/NumberInput';
+import { BondYieldAnalytics } from '../components/BondYieldAnalytics';
 import {
   formatDate,
   toDateTimeLocalValue,
@@ -86,7 +87,7 @@ export default function BondForm() {
   useEffect(() => {
     if (!id) {
       setCatalogLoading(true);
-      getBondsCatalog()
+      getBondsCatalog({ onlyActive: true })
         .then(setCatalog)
         .catch(() => setCatalog([]))
         .finally(() => setCatalogLoading(false));
@@ -196,6 +197,38 @@ export default function BondForm() {
     value: b,
     label: `${b.bondNumber} — ${b.name} (${b.isin})`,
   }));
+
+  const analyticsBond = useMemo<Bond | null>(() => {
+    if (!formData.name || !formData.currency || !formData.maturityDate) return null;
+
+    const faceValue = Number(formData.faceValue);
+    const couponRateAnnualPercent = Number(formData.couponRateAnnual);
+    if (!Number.isFinite(faceValue) || faceValue <= 0) return null;
+    if (!Number.isFinite(couponRateAnnualPercent) || couponRateAnnualPercent < 0) return null;
+
+    const payments = (formData.payments || [])
+      .filter(p => Boolean(p.date) && Number(p.amount) > 0)
+      .map(p => ({
+        ...p,
+        amount: Math.round(Number(p.amount) * 100),
+        type: p.type,
+        received: Boolean(p.received),
+      })) as Payment[];
+
+    if (payments.length === 0) return null;
+
+    return {
+      id: id || '__draft__',
+      name: formData.name,
+      currency: formData.currency,
+      faceValue: Math.round(faceValue * 100),
+      couponRateAnnual: couponRateAnnualPercent / 100,
+      couponFrequencyPerYear: payments.filter(p => p.type === 'coupon').length,
+      maturityDate: formData.maturityDate,
+      notes: formData.notes,
+      payments,
+    };
+  }, [formData, id]);
 
   return (
     <PageTransition>
@@ -316,6 +349,11 @@ export default function BondForm() {
           </FormFooter>
         </form>
       </Card>
+
+      <BondYieldAnalytics
+        bond={analyticsBond}
+        title="Аналитика доходности (предпросмотр бонда)"
+      />
       
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Сообщение">
         {modalMessage}

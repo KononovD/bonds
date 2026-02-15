@@ -27,7 +27,7 @@ export interface CatalogBond {
 
 @Injectable()
 export class BondsCatalogService {
-  async getCatalog(): Promise<CatalogBond[]> {
+  async getCatalog(onlyActive = false): Promise<CatalogBond[]> {
     const res = await fetch(NBU_DEPO_SECURITIES_URL);
     if (!res.ok) {
       throw new Error(`NBU API error: ${res.status} ${res.statusText}`);
@@ -35,10 +35,9 @@ export class BondsCatalogService {
     const data: NBUSecurity[] = await res.json();
     if (!Array.isArray(data)) return [];
 
-    const now = new Date();
     return data
       .filter((s) => s.val_code === 'UAH')
-      .filter((s) => new Date(s.pgs_date) > now)
+      .filter((s) => (onlyActive ? new Date(s.pgs_date) > new Date() : true))
       .map((s) => this.mapToCatalogBond(s));
   }
 

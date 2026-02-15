@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, Query } from '@nestjs/common';
 import { BondsService } from './bonds.service';
 import { BondsCatalogService } from './bonds-catalog.service';
 import { CreateBondDto, UpdateBondDto } from './dto/bond.dto';
@@ -16,8 +16,9 @@ export class BondsController {
   }
 
   @Get('catalog')
-  getCatalog() {
-    return this.catalogService.getCatalog();
+  getCatalog(@Query('onlyActive') onlyActive?: string) {
+    const activeOnly = onlyActive === 'true';
+    return this.catalogService.getCatalog(activeOnly);
   }
 
   @Get(':id')

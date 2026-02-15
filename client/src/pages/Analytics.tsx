@@ -10,8 +10,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
-  Legend,
   CartesianGrid,
 } from 'recharts';
 import styled from 'styled-components';
@@ -190,22 +188,14 @@ export default function Analytics() {
 
   const metrics = getAllBondMetrics(bonds, purchases, comparePricesCents);
 
-  const chartData = metrics.map(m => {
-    const yieldDisplay = m.effectiveYieldAnnual ?? m.yieldAtPrice ?? m.couponRateAnnual;
-    return {
-      name: m.bondName.length > 18 ? m.bondName.slice(0, 18) + '…' : m.bondName,
-      fullName: m.bondName,
-      yieldPct: yieldDisplay * 100,
-      couponPct: m.couponRateAnnual * 100,
-      effectivePct: m.effectiveYieldAnnual != null ? m.effectiveYieldAnnual * 100 : null,
-      atPricePct: m.yieldAtPrice != null ? m.yieldAtPrice * 100 : null,
-    };
-  });
-
   // Ожидаемые выплаты по месяцам (только выбранные облигации из портфеля, только будущие)
   const now = new Date();
   const paymentsByMonth: Record<string, number> = {};
-  const monthsSet = new Set<string>();
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const next24MonthKeys = Array.from({ length: 24 }, (_, i) => {
+    const d = new Date(startMonth.getFullYear(), startMonth.getMonth() + i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   bondsForCashFlow.forEach(bond => {
     const qty = bondQuantities[bond.id] || 0;
@@ -213,21 +203,15 @@ export default function Analytics() {
       const date = new Date(p.date);
       if (date < now) return;
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      monthsSet.add(key);
       paymentsByMonth[key] = (paymentsByMonth[key] || 0) + p.amount * qty;
     });
   });
 
-  const cashFlowData = Array.from(monthsSet)
-    .sort()
-    .slice(0, 24)
-    .map(key => ({
-      month: key,
-      display: key.slice(0, 7),
-      sum: (paymentsByMonth[key] || 0) / 100,
-    }));
-
-  const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4'];
+  const cashFlowData = next24MonthKeys.map(key => ({
+    month: key,
+    display: key,
+    sum: (paymentsByMonth[key] || 0) / 100,
+  }));
 
   return (
     <PageTransition>
@@ -318,59 +302,11 @@ export default function Analytics() {
         </div>
       </Section>
 
-      {chartData.length > 0 && (
-        <Section>
-          <Title>Сравнение доходности</Title>
-          <Hint>
-            Столбцы: купонная ставка и/или рассчитанная доходность к погашению (если есть покупки или
-            указана цена для сравнения).
-          </Hint>
-          <ChartWrap>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                <XAxis
-                  dataKey="name"
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis
-                  tickFormatter={v => `${v}%`}
-                  label={{ value: 'Доходность %', angle: -90, position: 'insideLeft' }}
-                />
-                <Tooltip
-                  formatter={(value: number | undefined) =>
-                    value != null ? [`${value.toFixed(2)}%`, 'Доходность'] : null
-                  }
-                  labelFormatter={label => {
-                    const row = chartData.find(d => d.name === label || d.fullName === label);
-                    return row?.fullName ?? label;
-                  }}
-                />
-                <Legend />
-                <Bar
-                  dataKey="yieldPct"
-                  name="Доходность (купон или к погашению)"
-                  fill="#3b82f6"
-                  radius={[4, 4, 0, 0]}
-                >
-                  {chartData.map((_, index) => (
-                    <Cell key={index} fill={colors[index % colors.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartWrap>
-        </Section>
-      )}
-
       {bondsInPortfolio.length > 0 && (
         <Section>
           <Title>Ожидаемые выплаты по месяцам</Title>
           <Hint>
-            Столбец показывается только в те месяцы, когда по выбранным облигациям реально приходит
-            выплата (купон или погашение). В остальные месяцы выплат нет — на графике они не отображаются.
+            Показаны все 24 ближайших месяца. В месяцы без выплат значение равно 0.
           </Hint>
 
           <FilterRow>
@@ -395,7 +331,7 @@ export default function Analytics() {
             </FilterButtons>
           </FilterRow>
 
-          {cashFlowData.length > 0 ? (
+          {chartSelectedIds.size > 0 ? (
           <ChartWrap>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -436,9 +372,7 @@ export default function Analytics() {
           </ChartWrap>
           ) : (
             <p style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: 16 }}>
-              {chartSelectedIds.size === 0
-                ? 'Выберите облигации для отображения в графике.'
-                : 'По выбранным облигациям нет будущих выплат в ближайшие 24 месяца.'}
+              Выберите облигации для отображения в графике.
             </p>
           )}
         </Section>

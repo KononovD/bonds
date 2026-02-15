@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getBond, updateBond, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
-import { getBondMetrics } from '../utils/bondAnalytics';
 import { formatDate } from '../utils/date';
 import { Card, Title, Table, Th, Td, Button, PageTransition } from '../components/styled';
+import { BondYieldAnalytics } from '../components/BondYieldAnalytics';
 import styled from 'styled-components';
 
 const DetailGrid = styled.div`
@@ -35,33 +35,6 @@ const SaveButtonContainer = styled.div`
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
-`;
-
-const MetricsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px;
-  margin-top: 12px;
-`;
-
-const Metric = styled.div`
-  background: #f0f9ff;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid #e0f2fe;
-`;
-
-const MetricLabel = styled.span`
-  display: block;
-  color: #6b7280;
-  font-size: 0.75rem;
-  margin-bottom: 4px;
-`;
-
-const MetricValue = styled.span<{ $positive?: boolean }>`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: ${p => (p.$positive === true ? '#059669' : p.$positive === false ? '#dc2626' : '#1f2937')};
 `;
 
 export default function BondDetails() {
@@ -129,41 +102,9 @@ export default function BondDetails() {
             <Value>{(bond.couponRateAnnual * 100).toFixed(2)}%</Value>
           </DetailItem>
         </DetailGrid>
-
-        {(() => {
-          const m = getBondMetrics(bond, purchases);
-          return (
-            <MetricsGrid>
-              <Metric>
-                <MetricLabel>Сумма купонов (1 шт)</MetricLabel>
-                <MetricValue>{(m.totalCoupons / 100).toFixed(2)}</MetricValue>
-              </Metric>
-              <Metric>
-                <MetricLabel>Погашение (1 шт)</MetricLabel>
-                <MetricValue>{(m.redemption / 100).toFixed(2)}</MetricValue>
-              </Metric>
-              <Metric>
-                <MetricLabel>Всего доход (1 шт)</MetricLabel>
-                <MetricValue>{(m.totalReturnPerBond / 100).toFixed(2)}</MetricValue>
-              </Metric>
-              {m.avgPurchasePrice != null && (
-                <Metric>
-                  <MetricLabel>Средняя цена покупки</MetricLabel>
-                  <MetricValue>{(m.avgPurchasePrice / 100).toFixed(2)}</MetricValue>
-                </Metric>
-              )}
-              {m.effectiveYieldAnnual != null && (
-                <Metric>
-                  <MetricLabel>Доходность к погашению</MetricLabel>
-                  <MetricValue $positive={m.effectiveYieldAnnual >= 0}>
-                    {(m.effectiveYieldAnnual * 100).toFixed(2)}%
-                  </MetricValue>
-                </Metric>
-              )}
-            </MetricsGrid>
-          );
-        })()}
       </Card>
+
+      <BondYieldAnalytics bond={bond} purchases={purchases} />
 
       <Card>
         <Title>Выплаты</Title>

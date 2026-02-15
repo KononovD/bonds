@@ -19,7 +19,10 @@ export interface CatalogBond {
   payments: { date: string; amount: number; type: 'coupon' | 'redemption' }[];
 }
 
-export const getBondsCatalog = () => api.get<CatalogBond[]>('/bonds/catalog').then(res => res.data);
+export const getBondsCatalog = (params?: { onlyActive?: boolean }) =>
+  api
+    .get<CatalogBond[]>('/bonds/catalog', { params })
+    .then(res => res.data);
 export const getBond = (id: string) => api.get<Bond>(`/bonds/${id}`).then(res => res.data);
 export const createBond = (bond: Partial<Bond>) => api.post<Bond>('/bonds', bond).then(res => res.data);
 export const updateBond = (id: string, bond: Partial<Bond>) => api.put<Bond>(`/bonds/${id}`, bond).then(res => res.data);
