@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ReactSelect from 'react-select';
-import { getBonds, getTargetProgress, saveTarget } from '../api/client';
-import { Bond, TargetProgress, Distribution } from '../types';
+import { getBonds, getPurchases, getTargetProgress, saveTarget } from '../api/client';
+import { Bond, TargetProgress, Distribution, Purchase } from '../types';
 import { NumberInput } from '../components/NumberInput';
 
 const Container = styled.div`
@@ -105,6 +105,15 @@ const BondName = styled.span`
   flex: 1;
 `;
 
+const BondLink = styled(Link)`
+  color: #2563eb;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 // PercentInput removed, using NumberInput with style
 
 const Table = styled.table`
@@ -145,6 +154,7 @@ const ProgressBar = styled.div<{ percent: number }>`
 const MonthlyTargetPage: React.FC = () => {
   const navigate = useNavigate();
   const [bonds, setBonds] = useState<Bond[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [amount, setAmount] = useState<number>(0);
   const [distributions, setDistributions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -162,11 +172,13 @@ const MonthlyTargetPage: React.FC = () => {
     const month = selectedDate.getMonth() + 1;
 
     try {
-      const [bondsData, progressData] = await Promise.all([
+      const [bondsData, purchasesData, progressData] = await Promise.all([
         getBonds(),
+        getPurchases(),
         getTargetProgress(year, month)
       ]);
       setBonds(bondsData);
+      setPurchases(purchasesData);
       setProgress(progressData);
 
       if (progressData.target) {
@@ -299,7 +311,10 @@ const MonthlyTargetPage: React.FC = () => {
         </FormGroup>
 
         <Label>Распределение (%)</Label>
-        {bonds.map(bond => (
+        {bonds
+          .slice()
+          .sort((a, b) => b.couponRateAnnual - a.couponRateAnnual)
+          .map(bond => (
           <BondRow key={bond.id}>
             <BondName>{bond.name}</BondName>
             <NumberInput 
@@ -348,7 +363,9 @@ const MonthlyTargetPage: React.FC = () => {
                 })
                 .map(bondProgress => (
                 <tr key={bondProgress.bondId}>
-                  <td>{bondProgress.bondName}</td>
+                  <td>
+                    <BondLink to={`/bonds/${bondProgress.bondId}`}>{bondProgress.bondName}</BondLink>
+                  </td>
                   <td>{bondProgress.percent}%</td>
                   <td>{formatCurrency(bondProgress.targetAmount)}</td>
                   <td>{formatCurrency(bondProgress.spentAmount)}</td>

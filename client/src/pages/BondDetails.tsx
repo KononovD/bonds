@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getBond, updateBond, getPurchases } from '../api/client';
+import { getBond, updateBond, getPurchases, getBonds } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { formatDate } from '../utils/date';
 import { Card, Title, Table, Th, Td, Button, PageTransition } from '../components/styled';
 import { BondYieldAnalytics } from '../components/BondYieldAnalytics';
+import { buildPortfolioPaymentsByMonth } from '../utils/portfolioAnalytics';
 import styled from 'styled-components';
 
 const DetailGrid = styled.div`
@@ -41,10 +42,14 @@ export default function BondDetails() {
   const { id } = useParams();
   const [bond, setBond] = useState<Bond | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [portfolioPaymentsByMonth, setPortfolioPaymentsByMonth] = useState<Record<string, number>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    getPurchases().then(setPurchases);
+    Promise.all([getBonds(), getPurchases()]).then(([allBonds, allPurchases]) => {
+      setPurchases(allPurchases);
+      setPortfolioPaymentsByMonth(buildPortfolioPaymentsByMonth(allBonds, allPurchases));
+    });
   }, []);
   useEffect(() => {
     if (id) getBond(id).then(setBond);
@@ -104,7 +109,11 @@ export default function BondDetails() {
         </DetailGrid>
       </Card>
 
-      <BondYieldAnalytics bond={bond} purchases={purchases} />
+      <BondYieldAnalytics
+        bond={bond}
+        purchases={purchases}
+        portfolioPaymentsByMonth={portfolioPaymentsByMonth}
+      />
 
       <Card>
         <Title>Выплаты</Title>

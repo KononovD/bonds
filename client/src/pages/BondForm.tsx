@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactSelect from 'react-select';
-import { getBond, createBond, updateBond, getBondsCatalog, CatalogBond } from '../api/client';
+import { getBond, createBond, updateBond, getBondsCatalog, CatalogBond, getBonds, getPurchases } from '../api/client';
 import { Bond, Payment } from '../types';
 import { Card, Title, Input, Label, FormGroup, Button, Table, Th, Td, PageTransition } from '../components/styled';
 import { Modal } from '../components/Modal';
 import { NumberInput } from '../components/NumberInput';
 import { BondYieldAnalytics } from '../components/BondYieldAnalytics';
+import { buildPortfolioPaymentsByMonth } from '../utils/portfolioAnalytics';
 import {
   formatDate,
   toDateTimeLocalValue,
@@ -15,6 +16,12 @@ import {
 } from '../utils/date';
 import styled from 'styled-components';
 import BigNumber from 'bignumber.js';
+
+function isFutureOrToday(dateString: string): boolean {
+  const now = new Date();
+  const paymentDate = new Date(dateString);
+  return paymentDate.getTime() >= now.getTime();
+}
 
 const Grid = styled.div`
   display: grid;
@@ -83,6 +90,7 @@ export default function BondForm() {
   const [modalMessage, setModalMessage] = useState('');
   const [catalog, setCatalog] = useState<CatalogBond[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [portfolioPaymentsByMonth, setPortfolioPaymentsByMonth] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!id) {
@@ -93,6 +101,12 @@ export default function BondForm() {
         .finally(() => setCatalogLoading(false));
     }
   }, [id]);
+
+  useEffect(() => {
+    Promise.all([getBonds(), getPurchases()]).then(([allBonds, allPurchases]) => {
+      setPortfolioPaymentsByMonth(buildPortfolioPaymentsByMonth(allBonds, allPurchases));
+    });
+  }, []);
 
   useEffect(() => {
     if (id) {
@@ -127,6 +141,15 @@ export default function BondForm() {
               amount: new BigNumber(p.amount).multipliedBy(100).toNumber()
           }))
       };
+
+      // Для новой облигации не сохраняем купоны, дата которых уже прошла.
+      if (!id) {
+        dataToSend.payments = (dataToSend.payments || []).filter(p => {
+          if (p.type !== 'coupon') return true;
+          return isFutureOrToday(p.date);
+        });
+        dataToSend.couponFrequencyPerYear = dataToSend.payments.length;
+      }
 
       if (id) {
         await updateBond(id, dataToSend);
@@ -184,12 +207,14 @@ export default function BondForm() {
       couponRateAnnual: b.couponRateAnnual,
       maturityDate: b.maturityDate,
       notes: b.isin ? `ISIN: ${b.isin}` : '',
-      payments: b.payments.map((p) => ({
-        date: p.date,
-        amount: p.amount,
-        type: p.type,
-        received: false,
-      })),
+      payments: b.payments
+        .filter((p) => (p.type === 'coupon' ? isFutureOrToday(p.date) : true))
+        .map((p) => ({
+          date: p.date,
+          amount: p.amount,
+          type: p.type,
+          received: false,
+        })),
     });
   };
 
@@ -353,6 +378,7 @@ export default function BondForm() {
       <BondYieldAnalytics
         bond={analyticsBond}
         title="Аналитика доходности (предпросмотр бонда)"
+        portfolioPaymentsByMonth={portfolioPaymentsByMonth}
       />
       
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Сообщение">
