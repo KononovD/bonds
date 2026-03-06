@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { getBonds, getPurchases } from '../api/client';
@@ -57,6 +58,15 @@ const CalendarContainer = styled.div`
 const EventsList = styled(Card)`
   flex: 1;
   min-width: 300px;
+`;
+
+const BondLink = styled(Link)`
+  color: #2563eb;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 const DotContainer = styled.div`
@@ -186,7 +196,9 @@ export default function CalendarPage() {
                 <tbody>
                     {selectedDateEvents.map((p, i) => (
                     <tr key={i}>
-                        <Td>{p.bondName}</Td>
+                        <Td>
+                          <BondLink to={`/bonds/${p.bondId}`}>{p.bondName}</BondLink>
+                        </Td>
                         <Td>{p.type === 'coupon' ? 'Купон' : 'Погашение'}</Td>
                         <Td>
                             <span style={{ 

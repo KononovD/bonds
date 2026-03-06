@@ -1,13 +1,25 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getBonds, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { Card, Title, Table, Th, Td, PageTransition } from '../components/styled';
 import { formatDate } from '../utils/date';
 import BigNumber from 'bignumber.js';
+import styled from 'styled-components';
+
+const BondLink = styled(Link)`
+  color: #2563eb;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
 
 interface HistoryItem {
   date: string;
   bondName: string;
+  bondId: string;
   type: 'coupon' | 'redemption';
   amount: number;
 }
@@ -40,6 +52,7 @@ export default function PaymentHistory() {
             allHistory.push({
               date: payment.date,
               bondName: bond.name,
+              bondId: bond.id,
               type: payment.type,
               amount: totalAmount
             });
@@ -74,7 +87,9 @@ export default function PaymentHistory() {
               ) : history.map((item, i) => (
                 <tr key={i}>
                   <Td>{formatDate(item.date)}</Td>
-                  <Td>{item.bondName}</Td>
+                  <Td>
+                    <BondLink to={`/bonds/${item.bondId}`}>{item.bondName}</BondLink>
+                  </Td>
                   <Td>{item.type === 'coupon' ? 'Купон' : 'Погашение'}</Td>
                   <Td style={{ color: '#10b981', fontWeight: 600 }}>+{item.amount.toFixed(2)}</Td>
                 </tr>

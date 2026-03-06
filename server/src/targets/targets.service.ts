@@ -26,15 +26,96 @@ export class TargetsService {
 
   async getProgress(year: number, month: number) {
     const target = await this.getTarget(year, month);
+    const selectedMonthKey = `${year}-${String(month).padStart(2, '0')}`;
+    const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
     const purchases = this.dataService.purchases.filter(p => {
       const d = new Date(p.date);
       return d.getFullYear() === year && d.getMonth() + 1 === month;
     });
 
-    const totalSpent = purchases.reduce((sum, p) => sum + (p.quantity * p.pricePerBond) + p.commission, 0);
+    const purchasesSpent = purchases.reduce((sum, p) => sum + (p.quantity * p.pricePerBond) + p.commission, 0);
+    const toMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const isMonthBeforeOrEqual = (key: string, compareTo: string) => key <= compareTo;
+    const incrementMonthKey = (key: string) => {
+      const [yearStr, monthStr] = key.split('-');
+      const y = parseInt(yearStr, 10);
+      const m = parseInt(monthStr, 10);
+      if (m === 12) return `${y + 1}-01`;
+      return `${y}-${String(m + 1).padStart(2, '0')}`;
+    };
+
+    const getQuantityAtDate = (bondId: string, paymentDate: Date) =>
+      this.dataService.purchases
+        .filter(p => p.bondId === bondId && new Date(p.date).getTime() <= paymentDate.getTime())
+        .reduce((sum, p) => sum + p.quantity, 0);
+
+    const incomeByMonth = this.dataService.bonds.reduce((acc, bond) => {
+      bond.payments.forEach(payment => {
+        const paymentDate = new Date(payment.date);
+        if (
+          payment.received &&
+          payment.type === 'coupon' &&
+          paymentDate.getTime() <= periodEnd.getTime()
+        ) {
+          const monthKey = toMonthKey(paymentDate);
+          const quantityAtDate = getQuantityAtDate(bond.id, paymentDate);
+          const totalIncome = payment.amount * quantityAtDate;
+          acc[monthKey] = (acc[monthKey] || 0) + totalIncome;
+        }
+      });
+      return acc;
+    }, {} as Record<string, number>);
+
+    const purchasesByMonth = this.dataService.purchases
+      .filter(p => new Date(p.date).getTime() <= periodEnd.getTime())
+      .reduce((acc, p) => {
+        const monthKey = toMonthKey(new Date(p.date));
+        acc[monthKey] = (acc[monthKey] || 0) + (p.quantity * p.pricePerBond) + p.commission;
+        return acc;
+      }, {} as Record<string, number>);
+
+    const targetsByMonth = this.dataService.monthlyTargets
+      .filter(t => isMonthBeforeOrEqual(`${t.year}-${String(t.month).padStart(2, '0')}`, selectedMonthKey))
+      .reduce((acc, t) => {
+        const monthKey = `${t.year}-${String(t.month).padStart(2, '0')}`;
+        acc[monthKey] = t.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+    const monthKeys = new Set<string>([
+      ...Object.keys(incomeByMonth),
+      ...Object.keys(purchasesByMonth),
+      ...Object.keys(targetsByMonth),
+      selectedMonthKey,
+    ]);
+
+    const firstMonthKey = Array.from(monthKeys).sort()[0] || selectedMonthKey;
+    let rollingIncomeBalance = 0;
+    let incomeAvailableForSelectedMonth = 0;
+    let currentMonthKey = firstMonthKey;
+
+    while (isMonthBeforeOrEqual(currentMonthKey, selectedMonthKey)) {
+      const monthIncome = incomeByMonth[currentMonthKey] || 0;
+      const monthSpent = purchasesByMonth[currentMonthKey] || 0;
+      const monthBaseTarget = targetsByMonth[currentMonthKey] || 0;
+
+      const incomeAvailableThisMonth = rollingIncomeBalance + monthIncome;
+      if (currentMonthKey === selectedMonthKey) {
+        incomeAvailableForSelectedMonth = incomeAvailableThisMonth;
+      }
+
+      const extraSpentAboveBase = Math.max(0, monthSpent - monthBaseTarget);
+      const usedIncome = Math.min(incomeAvailableThisMonth, extraSpentAboveBase);
+      rollingIncomeBalance = incomeAvailableThisMonth - usedIncome;
+
+      currentMonthKey = incrementMonthKey(currentMonthKey);
+    }
+
+    const effectiveTargetAmount = target ? target.amount + incomeAvailableForSelectedMonth : 0;
+    const totalSpent = purchasesSpent;
 
     const result = {
-      target: target,
+      target: target ? { ...target, amount: effectiveTargetAmount } : null,
       totalSpent: totalSpent,
       bonds: [] as any[]
     };
@@ -47,7 +128,7 @@ export class TargetsService {
             const bondPurchases = purchases.filter(p => p.bondId === dist.bondId);
             const spentOnBond = bondPurchases.reduce((sum, p) => sum + (p.quantity * p.pricePerBond) + p.commission, 0);
             
-            const targetAmountForBond = (target.amount * dist.percent) / 100;
+            const targetAmountForBond = (effectiveTargetAmount * dist.percent) / 100;
             const remaining = Math.max(0, targetAmountForBond - spentOnBond);
 
             return {

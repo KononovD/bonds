@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Link, useNavigate } from 'react-router-dom';
 import ReactSelect from 'react-select';
-import { getBonds, getPurchases, getTargetProgress, saveTarget } from '../api/client';
+import { getBonds, getPurchases, getTarget, getTargetProgress, saveTarget } from '../api/client';
 import { Bond, TargetProgress, Distribution, Purchase } from '../types';
 import { NumberInput } from '../components/NumberInput';
 
@@ -77,6 +77,14 @@ const Button = styled.button`
   &:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+  }
+`;
+
+const SecondaryButton = styled(Button)`
+  background-color: #6b7280;
+
+  &:hover {
+    background-color: #4b5563;
   }
 `;
 
@@ -155,9 +163,11 @@ const MonthlyTargetPage: React.FC = () => {
   const navigate = useNavigate();
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<number>(0); // Base target without received income
+  const [incomeAmount, setIncomeAmount] = useState<number>(0);
   const [distributions, setDistributions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [carryLoading, setCarryLoading] = useState(false);
   const [progress, setProgress] = useState<TargetProgress | null>(null);
 
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -172,19 +182,26 @@ const MonthlyTargetPage: React.FC = () => {
     const month = selectedDate.getMonth() + 1;
 
     try {
-      const [bondsData, purchasesData, progressData] = await Promise.all([
+      const [bondsData, purchasesData, targetData, progressData] = await Promise.all([
         getBonds(),
         getPurchases(),
+        getTarget(year, month).catch(() => null),
         getTargetProgress(year, month)
       ]);
       setBonds(bondsData);
       setPurchases(purchasesData);
       setProgress(progressData);
 
-      if (progressData.target) {
-        setAmount(progressData.target.amount / 100);
+      const baseAmountCents = targetData?.amount || 0;
+      const effectiveAmountCents = progressData.target?.amount || baseAmountCents;
+      const receivedIncomeCents = Math.max(0, effectiveAmountCents - baseAmountCents);
+
+      setAmount(baseAmountCents / 100);
+      setIncomeAmount(receivedIncomeCents / 100);
+
+      if (targetData) {
         const distMap: Record<string, number> = {};
-        progressData.target.distributions.forEach(d => {
+        targetData.distributions.forEach(d => {
           distMap[d.bondId] = d.percent;
         });
         // Ensure all bonds have entries
@@ -193,7 +210,6 @@ const MonthlyTargetPage: React.FC = () => {
         });
         setDistributions(distMap);
       } else {
-        setAmount(0); // Reset for new month
         const distMap: Record<string, number> = {};
         bondsData.forEach(b => distMap[b.id] = 0);
         setDistributions(distMap);
@@ -240,6 +256,43 @@ const MonthlyTargetPage: React.FC = () => {
     }
   };
 
+  const handleCarryFromPreviousMonth = async () => {
+    setCarryLoading(true);
+    const previousMonthDate = new Date(selectedDate);
+    previousMonthDate.setMonth(previousMonthDate.getMonth() - 1);
+
+    try {
+      const prevYear = previousMonthDate.getFullYear();
+      const prevMonth = previousMonthDate.getMonth() + 1;
+      const previousTarget = await getTarget(prevYear, prevMonth);
+
+      if (!previousTarget) {
+        alert('За прошлый месяц цель не найдена');
+        return;
+      }
+
+      const currentBondIds = new Set(bonds.map(b => b.id));
+      const distributionsToCarry: Distribution[] = previousTarget.distributions
+        .filter(d => currentBondIds.has(d.bondId))
+        .map(d => ({ bondId: d.bondId, percent: d.percent }));
+
+      await saveTarget({
+        year: selectedDate.getFullYear(),
+        month: selectedDate.getMonth() + 1,
+        amount: previousTarget.amount,
+        distributions: distributionsToCarry
+      });
+
+      await fetchData();
+      alert('Цель перенесена с прошлого месяца');
+    } catch (error) {
+      console.error('Error carrying target from previous month:', error);
+      alert('Не удалось перенести цель');
+    } finally {
+      setCarryLoading(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('uk-UA', { style: 'currency', currency: 'UAH' }).format(amount / 100);
   };
@@ -277,6 +330,7 @@ const MonthlyTargetPage: React.FC = () => {
       value: `${selectedDate.getFullYear()}-${selectedDate.getMonth() + 1}`,
       label: `${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}/${selectedDate.getFullYear()}`
   };
+  const totalAmount = amount + incomeAmount;
 
   if (loading && !progress) return <div>Loading...</div>;
 
@@ -301,13 +355,15 @@ const MonthlyTargetPage: React.FC = () => {
       <Section>
         <h3>Настройка ({currentOption.label})</h3>
         <FormGroup>
-          <Label>Общая сумма (UAH)</Label>
+          <Label>
+            Общая сумма ({amount.toFixed(2)} таргет + {incomeAmount.toFixed(2)} доход) = {totalAmount.toFixed(2)} UAH
+          </Label>
           <NumberInput 
             value={amount} 
             onValueChange={setAmount} 
-            placeholder="Введите сумму в грн"
+            placeholder="Введите таргет в грн"
           />
-          <small>Примечание: сумма вводится в гривнах</small>
+          <small>Вводится базовый таргет, доход от полученных купонов добавляется автоматически</small>
         </FormGroup>
 
         <Label>Распределение (%)</Label>
@@ -330,7 +386,12 @@ const MonthlyTargetPage: React.FC = () => {
             Всего: {Object.values(distributions).reduce((a, b) => a + b, 0).toFixed(1)}%
         </div>
         
-        <Button onClick={handleSave} style={{ marginTop: '20px' }}>Сохранить цель</Button>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+          <Button onClick={handleSave}>Сохранить цель</Button>
+          <SecondaryButton onClick={handleCarryFromPreviousMonth} disabled={carryLoading}>
+            {carryLoading ? 'Перенос...' : 'Перенести с прошлого месяца'}
+          </SecondaryButton>
+        </div>
       </Section>
 
       {progress && (
