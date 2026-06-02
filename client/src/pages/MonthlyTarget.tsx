@@ -234,13 +234,6 @@ const MonthlyTargetPage: React.FC = () => {
       .filter(([_, percent]) => percent > 0)
       .map(([bondId, percent]) => ({ bondId, percent }));
 
-    const totalPercent = distArray.reduce((sum, d) => sum + d.percent, 0);
-    
-    if (Math.abs(totalPercent - 100) > 0.1 && totalPercent !== 0) {
-       alert(`Total percentage is ${totalPercent}%, it should be 100%`);
-       return;
-    }
-
     try {
       await saveTarget({
         year: selectedDate.getFullYear(),
@@ -399,6 +392,7 @@ const MonthlyTargetPage: React.FC = () => {
           <h3>Прогресс</h3>
           <p>Цель: <b>{formatCurrency(progress.target?.amount || 0)}</b></p>
           <p>Потрачено: <b>{formatCurrency(progress.totalSpent)}</b></p>
+          <p>Осталось: <b>{formatCurrency((progress.target?.amount || 0) - progress.totalSpent)}</b></p>
           <ProgressBar percent={progress.target ? (progress.totalSpent / progress.target.amount) * 100 : 0} />
           
           <Table>

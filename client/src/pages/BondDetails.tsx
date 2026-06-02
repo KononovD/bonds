@@ -79,6 +79,10 @@ export default function BondDetails() {
 
   if (!bond) return <div>Загрузка...</div>;
 
+  const expectedProfitPerBond = bond.payments
+    .filter((payment) => payment.type === 'coupon')
+    .reduce((sum, payment) => sum + payment.amount, 0);
+
   return (
     <PageTransition>
       <Card>
@@ -105,6 +109,10 @@ export default function BondDetails() {
           <DetailItem>
             <Label>Ставка</Label>
             <Value>{(bond.couponRateAnnual * 100).toFixed(2)}%</Value>
+          </DetailItem>
+          <DetailItem>
+            <Label>Ожидаемая прибыль с 1 облигации</Label>
+            <Value>{(expectedProfitPerBond / 100).toFixed(2)} {bond.currency}</Value>
           </DetailItem>
         </DetailGrid>
       </Card>

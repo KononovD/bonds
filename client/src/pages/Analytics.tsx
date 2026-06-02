@@ -187,6 +187,16 @@ export default function Analytics() {
   });
 
   const metrics = getAllBondMetrics(bonds, purchases, comparePricesCents);
+  const sortedMetrics = [...metrics].sort((a, b) => {
+    const aYield = a.effectiveYieldAnnual;
+    const bYield = b.effectiveYieldAnnual;
+
+    if (aYield == null && bYield == null) return 0;
+    if (aYield == null) return 1;
+    if (bYield == null) return -1;
+
+    return bYield - aYield;
+  });
 
   // Ожидаемые выплаты по месяцам (только выбранные облигации из портфеля, только будущие)
   const now = new Date();
@@ -255,7 +265,7 @@ export default function Analytics() {
                   </Td>
                 </tr>
               ) : (
-                metrics.map(m => (
+                sortedMetrics.map(m => (
                   <tr key={m.bondId}>
                     <Td style={{ fontWeight: 600 }}>{m.bondName}</Td>
                     <Td>{formatPercent(m.couponRateAnnual)}</Td>

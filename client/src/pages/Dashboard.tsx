@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getBonds, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { Card, Title, Table, Th, Td, PageTransition } from '../components/styled';
@@ -27,6 +28,15 @@ const PaymentRow = styled.tr<{ $isInactive?: boolean }>`
   }
 `;
 
+const BondLink = styled(Link)`
+  color: #2563eb;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 export default function Dashboard() {
   const [bonds, setBonds] = useState<Bond[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -40,30 +50,31 @@ export default function Dashboard() {
 
   const totalInvested = purchases.reduce((sum, p) => sum + (p.quantity * p.pricePerBond + p.commission), 0) / 100;
 
-  // Calculate total quantity for each bond in portfolio
-  const bondQuantities = purchases.reduce((acc, p) => {
+  const currentBondQuantities = purchases.reduce((acc, p) => {
     acc[p.bondId] = (acc[p.bondId] || 0) + p.quantity;
     return acc;
   }, {} as Record<string, number>);
+  const getQuantityAtDate = (bondId: string, paymentDate: string) =>
+    purchases
+      .filter(p => p.bondId === bondId && new Date(p.date).getTime() <= new Date(paymentDate).getTime())
+      .reduce((sum, p) => sum + p.quantity, 0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allPayments = bonds.flatMap(b => {
-    const quantity = bondQuantities[b.id] || 0;
-    return b.payments.map(p => ({ 
-      ...p, 
-      bondName: b.name, 
+    const currentQuantity = currentBondQuantities[b.id] || 0;
+    return b.payments.map(p => {
+      const quantityAtPaymentDate = getQuantityAtDate(b.id, p.date);
+      return {
+      ...p,
+      bondName: b.name,
       bondId: b.id,
-      quantity,
-      hasInPortfolio: quantity > 0,
-      // Total amount for all bonds in portfolio, or just for 1 if not in portfolio (for reference)
-      totalAmount: quantity > 0 ? p.amount * quantity : p.amount
-    }));
+      quantity: quantityAtPaymentDate,
+      hasInPortfolio: currentQuantity > 0,
+      totalAmount: p.amount * quantityAtPaymentDate
+    };
+    });
   });
   
-  // Received income should also account for quantity at the time of payment?
-  // Since we don't have historical quantity, we use current quantity as an approximation
-  // or assume p.amount in data.json was already total? (No, usually it's per bond).
-  // For simplicity and based on user request, we use quantity-adjusted amounts.
   const receivedIncome = allPayments.filter(p => p.received).reduce((sum, p) => sum + p.totalAmount, 0) / 100;
 
   const now = new Date();
@@ -115,7 +126,9 @@ export default function Dashboard() {
                 <PaymentRow key={i} $isInactive={!p.hasInPortfolio}>
                   <Td>{formatDate(p.date)}</Td>
                   <Td>{getDaysUntil(p.date)}</Td>
-                  <Td>{p.bondName} {p.hasInPortfolio ? `(${p.quantity} шт.)` : ''}</Td>
+                  <Td>
+                    <BondLink to={`/bonds/${p.bondId}`}>{p.bondName}</BondLink> {p.hasInPortfolio ? `(${p.quantity} шт.)` : ''}
+                  </Td>
                   <Td>{p.type === 'coupon' ? 'Купон' : 'Погашение'}</Td>
                   <Td>{(p.totalAmount / 100).toFixed(2)}</Td>
                 </PaymentRow>

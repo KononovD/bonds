@@ -27,7 +27,9 @@ export class TargetsService {
   async getProgress(year: number, month: number) {
     const target = await this.getTarget(year, month);
     const selectedMonthKey = `${year}-${String(month).padStart(2, '0')}`;
+    const selectedMonthStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const periodEnd = new Date(year, month, 0, 23, 59, 59, 999);
+    const now = new Date();
     const purchases = this.dataService.purchases.filter(p => {
       const d = new Date(p.date);
       return d.getFullYear() === year && d.getMonth() + 1 === month;
@@ -111,7 +113,41 @@ export class TargetsService {
       currentMonthKey = incrementMonthKey(currentMonthKey);
     }
 
-    const effectiveTargetAmount = target ? target.amount + incomeAvailableForSelectedMonth : 0;
+    // Include forecasted coupon income for the selected month:
+    // - current month: only upcoming (not received yet) coupons
+    // - future month: all coupons of that month
+    // - past month: no forecast, only actually received coupons are counted
+    const isSelectedMonthCurrent =
+      selectedMonthStart.getFullYear() === now.getFullYear() &&
+      selectedMonthStart.getMonth() === now.getMonth();
+    const isSelectedMonthFuture = selectedMonthStart.getTime() > now.getTime();
+
+    const projectedIncomeForSelectedMonth = this.dataService.bonds.reduce((sum, bond) => {
+      const bondProjectedIncome = bond.payments.reduce((bondSum, payment) => {
+        const paymentDate = new Date(payment.date);
+        const isCouponInSelectedMonth =
+          payment.type === 'coupon' &&
+          paymentDate.getFullYear() === year &&
+          paymentDate.getMonth() + 1 === month;
+
+        if (!isCouponInSelectedMonth) return bondSum;
+
+        const shouldIncludeProjection =
+          (isSelectedMonthCurrent && !payment.received && paymentDate.getTime() >= now.getTime()) ||
+          (isSelectedMonthFuture && !payment.received);
+
+        if (!shouldIncludeProjection) return bondSum;
+
+        const quantityAtDate = getQuantityAtDate(bond.id, paymentDate);
+        return bondSum + (payment.amount * quantityAtDate);
+      }, 0);
+
+      return sum + bondProjectedIncome;
+    }, 0);
+
+    const effectiveTargetAmount = target
+      ? target.amount + incomeAvailableForSelectedMonth + projectedIncomeForSelectedMonth
+      : 0;
     const totalSpent = purchasesSpent;
 
     const result = {

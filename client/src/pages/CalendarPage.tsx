@@ -7,7 +7,6 @@ import { Bond, Purchase } from '../types';
 import { Card, Title, PageTransition, Table, Th, Td } from '../components/styled';
 import { formatDate, toDateOnlyString } from '../utils/date';
 import styled from 'styled-components';
-import BigNumber from 'bignumber.js';
 
 const CalendarContainer = styled.div`
   display: flex;
@@ -115,24 +114,18 @@ export default function CalendarPage() {
 
   const getPaymentsForDate = (date: Date) => {
     const dateStr = toDateOnlyString(date);
-
-    // Bond quantities map
-    const bondQuantities = purchases.reduce((acc, p) => {
-        acc[p.bondId] = (acc[p.bondId] || 0) + p.quantity;
-        return acc;
-    }, {} as Record<string, number>);
+    const getQuantityAtDate = (bondId: string, paymentDate: string) =>
+      purchases
+        .filter(p => p.bondId === bondId && new Date(p.date).getTime() <= new Date(paymentDate).getTime())
+        .reduce((sum, p) => sum + p.quantity, 0);
 
     // Flatten all payments
     const allPayments: ExtendedPayment[] = bonds.flatMap(b => {
-      const quantity = bondQuantities[b.id] || 0;
       return b.payments.map(p => ({
         ...p,
         bondName: b.name,
         bondId: b.id,
-        // Calculate amount relative to portfolio
-        totalAmount: quantity > 0 
-            ? new BigNumber(p.amount).multipliedBy(quantity).dividedBy(100).toNumber() 
-            : new BigNumber(p.amount).dividedBy(100).toNumber()
+        totalAmount: (p.amount * getQuantityAtDate(b.id, p.date)) / 100
       }));
     });
 

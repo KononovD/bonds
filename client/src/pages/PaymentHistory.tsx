@@ -4,7 +4,6 @@ import { getBonds, getPurchases } from '../api/client';
 import { Bond, Purchase } from '../types';
 import { Card, Title, Table, Th, Td, PageTransition } from '../components/styled';
 import { formatDate } from '../utils/date';
-import BigNumber from 'bignumber.js';
 import styled from 'styled-components';
 
 const BondLink = styled(Link)`
@@ -29,25 +28,18 @@ export default function PaymentHistory() {
 
   useEffect(() => {
     Promise.all([getBonds(), getPurchases()]).then(([bonds, purchases]) => {
-      // Calculate quantity per bond
-      const bondQuantities = purchases.reduce((acc, p) => {
-        acc[p.bondId] = (acc[p.bondId] || 0) + p.quantity;
-        return acc;
-      }, {} as Record<string, number>);
+      const getQuantityAtDate = (bondId: string, paymentDate: string) =>
+        purchases
+          .filter(p => p.bondId === bondId && new Date(p.date).getTime() <= new Date(paymentDate).getTime())
+          .reduce((sum, p) => sum + p.quantity, 0);
 
       const allHistory: HistoryItem[] = [];
 
       bonds.forEach(bond => {
         bond.payments.forEach(payment => {
           if (payment.received) {
-            const quantity = bondQuantities[bond.id] || 0;
-            // Only show history if we currently own the bond? 
-            // Or show it anyway but with quantity adjustment?
-            // Assuming "Received" means user marked it, so they likely owned it.
-            // Using current quantity as approximation.
-            const totalAmount = quantity > 0 
-                ? new BigNumber(payment.amount).multipliedBy(quantity).dividedBy(100).toNumber()
-                : new BigNumber(payment.amount).dividedBy(100).toNumber();
+            const quantityAtPaymentDate = getQuantityAtDate(bond.id, payment.date);
+            const totalAmount = (payment.amount * quantityAtPaymentDate) / 100;
 
             allHistory.push({
               date: payment.date,
