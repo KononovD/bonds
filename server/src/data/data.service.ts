@@ -73,6 +73,7 @@ export class DataService implements OnModuleInit {
   }
 
   async saveData() {
+    await fs.mkdir(path.dirname(this.dataFilePath), { recursive: true });
     const tempPath = this.dataFilePath + '.tmp';
     await fs.writeFile(tempPath, JSON.stringify(this.data, null, 2));
     await fs.rename(tempPath, this.dataFilePath);
