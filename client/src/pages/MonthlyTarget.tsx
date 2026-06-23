@@ -365,7 +365,7 @@ const MonthlyTargetPage: React.FC = () => {
           .sort((a, b) => b.couponRateAnnual - a.couponRateAnnual)
           .map(bond => (
           <BondRow key={bond.id}>
-            <BondName>{bond.name}</BondName>
+            <BondName><BondLink to={`/bonds/${bond.id}`}>{bond.name}</BondLink></BondName>
             <NumberInput 
               value={distributions[bond.id] || 0} 
               onValueChange={(val) => handleDistributionChange(bond.id, val)}

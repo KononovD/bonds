@@ -163,6 +163,51 @@ export default function BondDetails() {
           </SaveButtonContainer>
         )}
       </Card>
+
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <Title style={{ margin: 0 }}>Покупки</Title>
+          <Link to={`/purchases/new?bondId=${bond.id}`}>
+            <Button $variant="primary">Добавить покупку</Button>
+          </Link>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Дата</Th>
+                <Th>Кол-во</Th>
+                <Th>Цена за 1</Th>
+                <Th>Комиссия</Th>
+                <Th>Всего</Th>
+                <Th>Действия</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {purchases.filter(p => p.bondId === bond.id).length === 0 ? (
+                <tr><Td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>Покупок нет</Td></tr>
+              ) : purchases
+                  .filter(p => p.bondId === bond.id)
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map(p => (
+                    <tr key={p.id}>
+                      <Td>{formatDate(p.date)}</Td>
+                      <Td>{p.quantity}</Td>
+                      <Td>{(p.pricePerBond / 100).toFixed(2)} {bond.currency}</Td>
+                      <Td>{(p.commission / 100).toFixed(2)} {bond.currency}</Td>
+                      <Td>{((p.quantity * p.pricePerBond + p.commission) / 100).toFixed(2)} {bond.currency}</Td>
+                      <Td>
+                        <Link to={`/purchases/${p.id}/edit`}>
+                          <Button $variant="secondary">Ред.</Button>
+                        </Link>
+                      </Td>
+                    </tr>
+                  ))
+              }
+            </tbody>
+          </Table>
+        </div>
+      </Card>
     </PageTransition>
   );
 }
